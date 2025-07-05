@@ -1,0 +1,432 @@
+# Cálculo do ganho AV1 com influência do segundo andar
+
+# Parâmetros
+beta = 400
+RC1B = 1.333e3        # Ω
+ri2 = 9029.235        # Ω
+r_pi = 13823.529      # Ω
+RE1B = 28.47595       # Ω
+
+# Cálculo do paralelo entre RC1B e ri2
+paralelo_RC1B_ri2 = (RC1B * ri2) / (RC1B + ri2)
+
+# Numerador
+numerador = beta * paralelo_RC1B_ri2
+
+# Denominador corrigido
+denominador = 2 * r_pi + (1 + beta) * 2 * RE1B
+
+# Cálculo de AV1
+AV1 = numerador / denominador
+
+# Impressão no estilo relatório
+print("Valores Obtidos:\n")
+#print(f"• RC1B || ri2     = {paralelo_RC1B_ri2:.4f} Ω")
+#print(f"• Numerador       = {numerador:.4f}")
+#print(f"• Denominador     = {denominador:.4f}")
+print(f"• AV1             = {AV1:.5f} (V/V)")
+
+###################################################################################
+
+# Cálculo do ganho total absoluto AVTOTAL
+
+# Valores conhecidos
+AV1 = 9.2029     # V/V
+AV2 = 14.9598    # V/V
+AV3 = 1          # V/V
+
+# Cálculo de AVTOTAL (módulo)
+AVTOTAL = abs(AV1) * abs(AV2) * abs(AV3)
+
+# Impressão no estilo relatório
+print("Ganho Total (AVTOTAL):\n")
+print(f"• |AV1|     = {abs(AV1):.4f} (V/V)")
+print(f"• |AV2|     = {abs(AV2):.4f} (V/V)")
+print(f"• |AV3|     = {abs(AV3):.4f} (V/V)")
+print(f"• |AVTOTAL| = {AVTOTAL:.4f} (V/V)")
+
+# Verificação de necessidade de otimização
+if AVTOTAL < 158:
+    print(f"\nComo |AVTOTAL| = {AVTOTAL:.4f} < 158, será necessário otimizar o ganho.")
+else:
+    print(f"\n|AVTOTAL| = {AVTOTAL:.4f}, valor aceitável.")
+
+
+
+
+
+
+#Tentativa 1
+
+# Parâmetros
+beta = 400
+VT   = 25.85e-3
+IB2  = 0.0425e-3
+RE2  = 21
+AV1  = 9.203
+AV3  = 1
+
+# Cálculo de AV2 necessário
+AV2_necessario = 158 / (AV1 * AV3)
+
+# Cálculo de rπ2
+r_pi2 = VT / IB2
+
+# Cálculo de RC2 necessário
+RC2 = (-AV2_necessario * (r_pi2 + (1 + beta) * RE2)) / beta
+
+# Validação de tensão no coletor
+IC2 = 17e-3
+VRC2 = IC2 * RC2
+
+print("Resultados para atingir AVTOTAL = 158:\n")
+print(f"• AV2 necessário = {AV2_necessario:.4f} (V/V)")
+print(f"• RC2 necessário = {RC2:.2f} Ω")
+print(f"• VRC2           = {VRC2:.2f} V (deve ser <= VCC = 6V em módulo)")
+
+
+
+
+# Tentativa 2
+
+# Dimensionamento do 2º andar
+
+# ----------------------------------------------
+# Dimensionamento para atingir AVTOTAL = 158
+# Teste de diferentes valores de AV1
+# ----------------------------------------------
+
+import numpy as np
+import pandas as pd
+
+# --- Parâmetros fixos ---
+AVTOTAL = 158         # Ganho total desejado
+AV3     = 1           # Ganho do 3º Andar
+VT      = 25.85e-3    # Tensão térmica (V)
+IB2     = 0.0425e-3   # Corrente de base do andar 2 (A)
+RE2     = 21          # Resistência do emissor no andar 2 (Ω)
+beta    = 400         # Ganho do transistor
+IC2     = 17e-3       # Corrente do coletor do andar 2 (A)
+VCC     = 6           # Tensão de alimentação (V)
+
+# --- Cálculo de rπ2 ---
+r_pi2 = VT / IB2
+
+# --- Denominador da equação de AV2 ---
+den_AV2 = r_pi2 + (1 + beta) * RE2
+
+# --- Testar valores de AV1 ---
+av1_range = np.arange(10.0, 12.1, 0.1)  # de 10 a 12 com passo de 0.1
+resultados = []
+
+for AV1 in av1_range:
+    # 1. Calcular o AV2 necessário para atingir AVTOTAL
+    AV2 = AVTOTAL / (AV1 * AV3)
+
+    # 2. Calcular o RC2 correspondente com base em AV2
+    RC2 = (AV2 * den_AV2) / beta
+
+    # 3. Verificar se a queda de tensão RC2 é aceitável (IC2 * RC2 ≤ VCC)
+    VRC2 = IC2 * RC2
+
+    if VRC2 <= VCC:
+        resultados.append({
+            "AV1": round(AV1, 4),
+            "AV2 necessário": round(AV2, 4),
+            "RC2 (Ω)": round(RC2, 2),
+            "VRC2 (V)": round(VRC2, 2),
+            "rπ2 (Ω)": round(r_pi2, 2)
+        })
+
+# --- Mostrar os resultados viáveis ---
+df_resultados = pd.DataFrame(resultados)
+
+# --- Visualização ---
+print("Candidatos viáveis para dimensionamento do AV2 com RC2:\n")
+print(df_resultados.to_string(index=False))
+
+
+
+
+
+
+# Dimensionamento do 1º Andar AC
+
+# Continuação da Tentativa 2
+
+# --- Parâmetros conhecidos ---
+beta = 400
+AV1_desejado = 10.8  # da tabela
+r_pi = 13823.529     # Ω
+ri2 = 9029.235       # Ω (com novo RC2)
+RC1B = 1333          # Ω (mantido igual, caso não seja alterado)
+
+# --- Cálculo do paralelo entre RC1B e ri2 ---
+paralelo = (RC1B * ri2) / (RC1B + ri2)
+
+# --- Cálculo do numerador e denominador ---
+numerador = beta * paralelo
+denominador = AV1_desejado
+
+# --- Resolver equação para RE1B ---
+RE1B = (numerador / denominador - 2 * r_pi) / (2 * (beta + 1))
+
+# --- Impressão dos resultados ---
+print("Recalculando valores do 1º andar:\n")
+print(f"• AV1 desejado   = {AV1_desejado:.4f} (V/V)")
+print(f"• rπ             = {r_pi:.2f} Ω")
+print(f"• ri2            = {ri2:.2f} Ω")
+print(f"• RC1B           = {RC1B:.2f} Ω")
+print(f"• RC1B || ri2    = {paralelo:.2f} Ω")
+print(f"• RE1B (novo)    = {RE1B:.4f} Ω")
+
+
+
+
+
+
+# Dimensionamento do 2º Andar DC (Novo Dimensionamento)
+
+# --- Parâmetros escolhidos ---
+IC2   = 17e-3        # Corrente de coletor (17 mA)
+VCE2  = 5            # Tensão coletor-emissor desejada
+beta  = 400          # Ganho de corrente do transistor
+RC2   = 330.24       # Ω ← valor da prática escolhido       # alterado
+RE2   = 21           # Ω ← valor usado no AC (mantido)     # alterado
+
+# --- Cálculos iniciais ---
+IB2 = IC2 / beta            # Corrente de base
+IE2 = IC2 + IB2             # Corrente de emissor
+
+# --- Tensão de alimentação e do multiplicador ---
+VEE  = -6                   # Tensão negativa
+VMBE = 0.65                 # Tensão do multiplicador VBE
+VCC  = 6                    # Tensão positiva
+
+# --- Cálculo de VRC2 e VC2 ---
+VRC2 = IC2 * RC2            # Queda de tensão no coletor
+VC2  = VEE + VRC2           # Tensão no coletor Q2 (referido a GND)
+
+# --- Cálculo de VRE2 e RE2 (validação) via KVL malha C-E ---
+VRE2 = VCC - VCE2 - VMBE - VRC2
+RE2_check = VRE2 / IE2      # Verificação do valor de RE2       # alterado
+
+# --- Impressão ---
+print("Valores Atualizados para o 2º Andar DC (Novo Dimensionamento):\n")
+print("Escolhidos:")
+print(f"• RC2 = {RC2:.2f} Ω")  # alterado
+print(f"• RE2 = {RE2:.0f} Ω")  # alterado
+print()
+print("Obtidos:")
+print(f"• iB2              = {IB2 * 1e3:.4f} mA")
+print(f"• iE2              = {IE2 * 1e3:.4f} mA")
+print(f"• VRC2             = {VRC2:.2f} V")
+print(f"• VC2              = {VC2:.2f} V")
+print(f"• VRE2             = {VRE2:.2f} V")
+print(f"• RE2 calculado    = {RE2_check:.2f} Ω")  # alterado
+
+
+
+
+
+# Análise DC do 1º Andar (Novo Dimensionamento)
+
+# --- Parâmetros fornecidos ---
+VCC  = 6              # Tensão de alimentação (V)
+IF1  = 1.5e-3         # Corrente fornecida pela fonte IF1 (A)
+beta = 400            # Ganho do transistor
+VC1  = 5              # Tensão desejada no coletor (V)  # alterado
+
+# --- Cálculo das correntes ---
+iEQ1A = IF1 / 2                     # Corrente de emissor (A)
+iBQ1A = iEQ1A / (beta + 1)          # Corrente de base (A)
+iCQ1A = beta * iBQ1A                # Corrente de coletor (A)
+
+# --- Cálculo da resistência de coletor ---
+RC1A = RC1B = (VCC - VC1) / iCQ1A   # Ω  # alterado
+
+# --- Queda de tensão no coletor ---
+VRC1B = iCQ1A * RC1B                # V  # alterado
+
+# --- Impressão dos resultados ---
+print("Resultados da Análise DC do 1º Andar (Novo Dimensionamento):\n")
+print(f"• iEQ1A       = iEQ1B = {iEQ1A*1e3:.4f} mA")
+print(f"• iBQ1A       = iBQ1B = {iBQ1A*1e6:.2f} µA")
+print(f"• iCQ1A       = iCQ1B = {iCQ1A*1e3:.4f} mA")
+print(f"• RC1A        = RC1B  = {RC1A:.2f} Ω")
+print(f"• VRC1B       = {VRC1B:.2f} V")
+print(f"• VC1         = {VC1:.2f} V")
+
+
+
+
+
+
+# LAB TESTE PRÁTICA
+
+
+# Dimensionamento do 2º Andar DC (com valores da prática)
+
+# --- Parâmetros escolhidos ---
+IC2 = 17e-3       # Corrente de coletor (17 mA)
+VCE2 = 5          # Tensão coletor-emissor
+beta = 400        # Ganho de corrente do transistor
+RC2 = 330         # Ω (valor prático escolhido)  # alterado
+RE2 = 22          # Ω (valor prático escolhido)  # alterado
+
+# --- Cálculos auxiliares ---
+IB2 = IC2 / beta              # Corrente de base
+IE2 = IC2 + IB2               # Corrente de emissor
+
+# --- Dados adicionais ---
+VEE = -6                     # Tensão negativa
+VMBE = 0.65                  # Tensão do multiplicador VBE
+VCC = 6                      # Tensão positiva
+VEC2 = VCE2                  # Tensão coletor-emissor
+
+
+# --- Cálculo de VRC2 e VC2 ---
+VRC2 = IC2 * RC2             # Queda de tensão no coletor
+# VC2 = VRC2                   # Tensão no coletor de Q2 (relativa a VEE)
+# VC2 = VCC - VRC2
+VC2 = VEE + VRC2
+
+
+
+
+# --- Cálculo de VRE2 via KVL e verificação ---
+VRE2 = VCC - VEC2 - VMBE - VRC2
+
+# --- Verificação de consistência (RE2 = VRE2 / IE2) ---
+RE2_calculada = VRE2 / IE2
+
+# --- Impressão ---
+print("Valores Atualizados para o 2º Andar DC (Prática):\n")
+print("Escolhidos:")
+print("• RC2 = 330 Ω")  # alterado
+print("• RE2 = 22 Ω")   # alterado
+print()
+print("Obtidos:")
+print(f"• iB2  = {IB2*1e3:.4f} mA")
+print(f"• iE2  = {IE2*1e3:.4f} mA")
+print(f"• VRC2 = {VRC2:.2f} V")
+print(f"• VC2  = {VC2:.2f} V")
+print(f"• VRE2 = {VRE2:.2f} V")
+print(f"• RE2 calculado (check) = {RE2_calculada:.2f} Ω")
+
+
+
+
+
+
+# LAB TESTE PRÁTICA
+
+# Dimensionamento do 2º Andar AC parte 1
+
+# Parâmetros
+beta = 400
+RC2  = 330        # Ω     Alterado
+VT   = 25.85e-3   # V
+IB2  = 17e-3      # A
+RE2  = 22         # Ω    Alterado
+
+# Cálculo de rπ2
+r_pi2 = VT / IB2
+
+# Cálculo de AV2
+AV2 = (-beta * RC2) / (r_pi2 + (1 + beta) * RE2)
+
+# Impressão no estilo relatório
+print("Valores Obtidos:\n")
+print(f"• Av2 = {AV2:.4f} (V/V)")
+
+
+
+
+# Dimensionamento do 1º Andar AC
+
+# Cálculo de AV1
+AVtotal = 158
+AV2 = -14.96
+AV3 = 1
+AV1 = AVtotal / (AV2 * AV3)
+
+# Parâmetros
+beta = 400
+RC1B = 1000           # Ω
+VT = 25.85e-3         # V
+IBIA = 0.00187e-3     # A
+AV1_mod = abs(AV1)
+
+
+# Cálculo de rπA e rπB (iguais)
+r_pi = VT / IBIA
+
+# Cálculo de RE1B
+numerador = (beta * RC1B / AV1_mod) - 2 * r_pi
+RE1B = numerador / (2 * (1 + beta))
+
+# Impressão no estilo relatório
+print("Valores Obtidos:\n")
+print(f"•AV1   = {AV1:.4f} (V/V)")
+print(f"•|AV1| = {abs(AV1):.4f} (V/V)")
+print(f"•RE1B  = {RE1B:.5f} Ω")
+
+
+
+
+
+# Cálculo do ganho AV1 com influência do segundo andar
+
+# Parâmetros
+beta = 400
+RC1B = 1000           # Ω
+ri2 = 9029.235        # Ω
+r_pi = 13823.529      # Ω
+RE1B = 27             # Ω
+
+# Cálculo do paralelo entre RC1B e ri2
+paralelo_RC1B_ri2 = (RC1B * ri2) / (RC1B + ri2)
+
+# Numerador
+numerador = beta * paralelo_RC1B_ri2
+
+# Denominador corrigido
+denominador = 2 * r_pi + (1 + beta) * 2 * RE1B
+
+# Cálculo de AV1
+AV1 = numerador / denominador
+
+# Impressão no estilo relatório
+print("Valores Obtidos:\n")
+#print(f"• RC1B || ri2     = {paralelo_RC1B_ri2:.4f} Ω")
+#print(f"• Numerador       = {numerador:.4f}")
+#print(f"• Denominador     = {denominador:.4f}")
+print(f"• AV1              = {AV1:.5f} (V/V)")
+
+###################################################################################
+
+# Cálculo do ganho total absoluto AVTOTAL
+
+# Valores conhecidos
+AV1 = 10.5615     # V/V
+AV2 = 14.9598     # V/V
+AV3 = 1           # V/V
+
+# Cálculo de AVTOTAL (módulo)
+AVTOTAL = abs(AV1) * abs(AV2) * abs(AV3)
+
+# Impressão no estilo relatório
+print("Ganho Total (AVTOTAL):\n")
+print(f"• |AV1|     = {abs(AV1):.4f} (V/V)")
+print(f"• |AV2|     = {abs(AV2):.4f} (V/V)")
+print(f"• |AV3|     = {abs(AV3):.4f} (V/V)")
+print(f"• |AVTOTAL| = {AVTOTAL:.4f}  (V/V)")
+
+# Verificação de necessidade de otimização
+if AVTOTAL < 158:
+    print(f"\nComo |AVTOTAL| = {AVTOTAL:.4f} < 158, será necessário otimizar o ganho.")
+else:
+    print(f"\n|AVTOTAL| = {AVTOTAL:.4f}, valor aceitável.")
+
+
