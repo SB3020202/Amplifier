@@ -65,8 +65,8 @@ Cada grupo (até 3 elementos) escolhe **Opção A (20 Valores)**, **B (17 Valore
 ![Esquemático Completo com Fontes e Mult. VBE](./images/esquematico_multiandar.png)
 
 ## Contribuidores
-- **[Nome do Estudante 1]** — Análise teórica e simulação  
-- **[Nome do Estudante 2]** — Montagem e ensaio experimental  
-- **[Nome do Estudante 3]** — Documentação e relatório  
+- **[Sidi Brahim]**    
+- **[André Gomes]** 
+- **[Pedro Carvalho]** 
 
-*Para dúvidas, consulte o Moodle ou contacte o docente.*  
+
